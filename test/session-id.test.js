@@ -262,6 +262,38 @@ test('Same-opener conversations fork on divergence and reuse the fork on continu
   assert.equal(sessions[2], sessions[3]);
 });
 
+test('Session ID: bounded cache evicts the least-recently-used conversation once full', async () => {
+  const provider = new OpenCodeChatProvider(createMockContext());
+  const opener = 'original conversation, will be evicted eventually';
+  await provider.provideLanguageModelChatResponse(
+    GO_CHAT_MODEL, [createMockMessage(opener)], {}, createMockProgress(), createMockToken()
+  );
+  const requestsAfterFirst = mockServer.getRequests();
+  const originalSession = requestsAfterFirst[0].headers['x-opencode-session'];
+  assert.match(originalSession, UUID_V4);
+
+  // Fill the cache past its capacity (50) with distinct conversations so the
+  // original entry, being the oldest, gets evicted.
+  for (let i = 0; i < 55; i++) {
+    await provider.provideLanguageModelChatResponse(
+      GO_CHAT_MODEL, [createMockMessage(`filler conversation number ${i}`)], {}, createMockProgress(), createMockToken()
+    );
+  }
+
+  // Re-send the original conversation's opening message as a fresh "turn 1".
+  await provider.provideLanguageModelChatResponse(
+    GO_CHAT_MODEL, [createMockMessage(opener)], {}, createMockProgress(), createMockToken()
+  );
+
+  const requests = mockServer.getRequests();
+  const replaySession = requests[requests.length - 1].headers['x-opencode-session'];
+  assert.notEqual(
+    replaySession,
+    originalSession,
+    'Expected the evicted conversation to receive a brand-new session id'
+  );
+});
+
 test('Go retains the session across transient retries', async () => {
   mockServer.setScenario([{ mode: 'fault', status: 503 }, { mode: 'standard', content: 'Recovered' }]);
   const provider = new OpenCodeChatProvider(createMockContext());

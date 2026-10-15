@@ -1,23 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-// RED: honest-client contract. These MUST fail before the fix and pass after.
-// 1. No synthetic OpenCode-client verification tools are ever injected.
-// 2. Request headers identify honestly (no opencode/ UA, no x-opencode-client).
-// 3. Zen catalog is announced as-is: buildUnifiedModels keeps -free IDs with (OpenCode Zen) suffix.
-// 4. Upstream error card relays their status, model ID, and message with nothing invented.
-
-test('RED: formatProviderTools never injects bash/read verification tools', async () => {
+// Honest-client contract (standing): no injection parameter exists anymore.
+// formatProviderTools(tools, isResponses, log, relaxedToolNames?) maps caller
+// tools only; with no caller tools it returns undefined, never synthetic tools.
+test('honest client: formatProviderTools never injects bash/read verification tools', async () => {
   const { formatProviderTools } = await import('../out/chat/infrastructure/tool-mapper.js');
-  // Third arg true = "inject verification tools" in the current signature.
-  // Honest client: even when asked, nothing synthetic may appear.
-  const empty = formatProviderTools(undefined, true, true);
+  const discardLog = () => {};
+  const empty = formatProviderTools(undefined, true, discardLog);
   assert.equal(empty, undefined, 'No caller tools must mean no tools payload, not injected bash/read');
-  const chatEmpty = formatProviderTools(undefined, false, true);
+  const chatEmpty = formatProviderTools(undefined, false, discardLog);
   assert.equal(chatEmpty, undefined);
 });
 
-test('RED: tool-mapper exposes no verification-tool exports', async () => {
+test('honest client: tool-mapper exposes no verification-tool exports', async () => {
   const mapper = await import('../out/chat/infrastructure/tool-mapper.js');
   assert.equal('injectOpenCodeVerificationTools' in mapper, false, 'injectOpenCodeVerificationTools must be deleted');
   assert.equal('OPENCODE_CLIENT_VERIFICATION_TOOLS_RESPONSES' in mapper, false);
@@ -25,7 +21,7 @@ test('RED: tool-mapper exposes no verification-tool exports', async () => {
   assert.equal('isSyntheticVerificationTool' in mapper, false, 'isSyntheticVerificationTool must be deleted');
 });
 
-test('RED: request headers identify honestly, not as the OpenCode client', async () => {
+test('honest client: request headers identify honestly, not as the OpenCode client', async () => {
   const { createOpenCodeRequestHeaders } = await import('../out/chat/infrastructure/request-factory.js');
   const sessionId = '72cc93f5-9d95-4a43-a94d-54c9ead4122d';
   const headers = createOpenCodeRequestHeaders('sk-test', sessionId);
@@ -35,7 +31,7 @@ test('RED: request headers identify honestly, not as the OpenCode client', async
   assert.equal(headers['x-opencode-request'], undefined, 'fake msg_ request header must be gone');
 });
 
-test('RED: buildUnifiedModels announces Zen IDs as-is with Zen suffix', async () => {
+test('honest client: buildUnifiedModels announces Zen IDs as-is with Zen suffix', async () => {
   const { buildUnifiedModels } = await import('../out/models/application/synchronize-models.js');
   const { models } = buildUnifiedModels(['kimi-k3'], ['ling-3.1-flash-free', 'claude-sonnet-4-6'], {});
   const ling = models.find((m) => m.id === 'ling-3.1-flash-free');
@@ -44,7 +40,7 @@ test('RED: buildUnifiedModels announces Zen IDs as-is with Zen suffix', async ()
   assert.ok(!models.some((m) => m.name.includes('(OpenCode Free)')));
 });
 
-test('RED: enrichModel has no isFree concept and no Free suffix', async () => {
+test('honest client: enrichModel has no isFree concept and no Free suffix', async () => {
   const { enrichModel } = await import('../out/models/infrastructure/model-enricher.js');
   const model = enrichModel('ling-3.1-flash-free', { isGo: false });
   assert.equal(model.isFree, undefined, 'isFree field must be gone');
@@ -53,7 +49,7 @@ test('RED: enrichModel has no isFree concept and no Free suffix', async () => {
   assert.equal(model.requestHeaders, undefined, 'fake x-opencode-session requestHeaders must be gone');
 });
 
-test('RED: models-dev-client exposes no free-tier helpers', async () => {
+test('honest client: models-dev-client exposes no free-tier helpers', async () => {
   const client = await import('../out/models/infrastructure/models-dev-client.js');
   assert.equal('isFreeTierModel' in client, false, 'isFreeTierModel must be deleted');
   assert.equal('filterFreeModels' in client, false, 'filterFreeModels must be deleted');
