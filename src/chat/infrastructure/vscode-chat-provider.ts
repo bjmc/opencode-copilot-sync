@@ -201,9 +201,23 @@ function throwForAuthError(input: AuthErrorInput): void {
   throw new Error(errMessage);
 }
 
+/**
+ * Verbatim upstream-failure card. Contract, do not embellish:
+ * - one blockquote line per detail line (`> ` prefixes EVERY line, so a
+ *   multi-line upstream message can never leak unquoted markdown into chat);
+ * - the upstream message is relayed verbatim, truncated to 300 chars;
+ * - empty detail falls back to `statusText`, then 'Service Error';
+ * - no invented reason is ever added (the old classifyUpstreamAlert
+ *   taxonomy was deliberately deleted with the impersonation cleanup).
+ * The `> ⚠️ \`id\` (status):` prefix is the card's identity; detectors
+ * match it with startsWith (see provider-chaos / stale-model tests), so
+ * keep the first-line shape stable.
+ */
 function buildAlertNotice(res: Response, model: vscode.LanguageModelChatInformation, userDetail: string): string {
   const detail = userDetail.slice(0, 300) || res.statusText || 'Service Error';
-  return `> ⚠️ \`${model.id}\` (${res.status}): ${detail}`;
+  const [first, ...rest] = detail.split('\n');
+  const head = `> ⚠️ \`${model.id}\` (${res.status}): ${first}`;
+  return [head, ...rest.map((line) => `> ${line}`)].join('\n');
 }
 
 /**

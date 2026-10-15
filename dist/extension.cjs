@@ -29240,7 +29240,7 @@ function isZenModel(modelId, meta) {
     return false;
   }
   const lower = modelId.toLowerCase();
-  return lower.includes("free") || lower === "big-pickle" || lower === "grok-code";
+  return lower.endsWith("-free") || lower === "big-pickle" || lower === "grok-code";
 }
 function createProviderRequest(input) {
   const baseUrl = input.isZen ? "https://opencode.ai/zen/v1" : "https://opencode.ai/zen/go/v1";
@@ -30319,7 +30319,9 @@ function throwForAuthError(input) {
 }
 function buildAlertNotice(res, model, userDetail) {
   const detail = userDetail.slice(0, 300) || res.statusText || "Service Error";
-  return `> \u26A0\uFE0F \`${model.id}\` (${res.status}): ${detail}`;
+  const [first, ...rest] = detail.split("\n");
+  const head = `> \u26A0\uFE0F \`${model.id}\` (${res.status}): ${first}`;
+  return [head, ...rest.map((line) => `> ${line}`)].join("\n");
 }
 async function handleUpstreamError(res, errText, attempt, input, ctx, progress, log) {
   let userDetail = extractErrorMessage(errText);

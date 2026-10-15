@@ -6,8 +6,17 @@
 // 'dev'.
 declare const __EXTENSION_VERSION__: string | undefined;
 
-export const EXTENSION_VERSION: string =
-  typeof __EXTENSION_VERSION__ !== 'undefined' ? __EXTENSION_VERSION__ : 'dev';
+/** Either a build-injected `major.minor.patch` or the unbundled-run fallback. */
+export type ExtensionVersion = `${number}.${number}.${number}` | 'dev';
+
+export const EXTENSION_VERSION: ExtensionVersion =
+  typeof __EXTENSION_VERSION__ !== 'undefined'
+    ? (__EXTENSION_VERSION__ as ExtensionVersion)
+    : 'dev';
+
+/** True when running unbundled (tsc `out/`, tests) without the build define.
+ * Consumers must never treat a `dev` UA as a release version. */
+export const IS_DEV_VERSION: boolean = EXTENSION_VERSION === 'dev';
 
 export function extensionUserAgent(): string {
   return `vscode-opencode-copilot-sync/${EXTENSION_VERSION}`;

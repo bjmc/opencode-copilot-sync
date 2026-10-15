@@ -280,6 +280,12 @@ test('VERIFIED_OPENCODE_MODELS static fallback includes all Muse models with thi
   assert.equal(isResponsesModel('big-pickle'), false);
 });
 
+test('isZenModel matches only -free suffixed IDs without metadata', () => {
+  assert.equal(isZenModel('freeform-9000'), false, 'contains free but is not a Zen -free ID');
+  assert.equal(isZenModel('freedom-1'), false, 'contains free but is not a Zen -free ID');
+  assert.equal(isZenModel('mimo-v2.5-free'), true, '-free suffix still falls back to Zen');
+});
+
 test('isZenModel routes by catalog, with -free IDs falling back to Zen', () => {
   assert.equal(isZenModel('muse-spark-1.3-contributor', { catalog: 'go' }), false);
   assert.equal(isZenModel('deepseek-v4-pro', { catalog: 'go' }), false);

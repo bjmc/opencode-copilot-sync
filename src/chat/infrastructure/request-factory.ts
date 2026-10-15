@@ -23,8 +23,10 @@ export function isResponsesModel(modelId: string, apiType?: string): boolean {
  * Determines whether a model belongs to the OpenCode Zen catalog, which
  * routes to https://opencode.ai/zen/v1 instead of the flat-rate Go gateway.
  * Routing follows the catalog the model synced from. IDs without metadata
- * fall back to a name check for the Zen catalog's `-free` IDs (which live
- * there regardless of tier policy); everything else defaults to Go.
+ * fall back to a `-free` suffix check (the Zen catalog's legacy free IDs
+ * live there regardless of tier policy) plus two named exceptions:
+ * `big-pickle` and `grok-code`, which are Zen-only IDs without the suffix.
+ * Everything else defaults to Go.
  */
 export function isZenModel(modelId: string, meta?: OpenCodeModelMeta): boolean {
   if (meta?.catalog === 'zen') {
@@ -34,7 +36,7 @@ export function isZenModel(modelId: string, meta?: OpenCodeModelMeta): boolean {
     return false;
   }
   const lower = modelId.toLowerCase();
-  return lower.includes('free') || lower === 'big-pickle' || lower === 'grok-code';
+  return lower.endsWith('-free') || lower === 'big-pickle' || lower === 'grok-code';
 }
 
 export interface ProviderRequestInput {

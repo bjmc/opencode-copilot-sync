@@ -93,3 +93,44 @@ test('Upstream error card relays their message with no invented reason', async (
     await server.close();
   }
 });
+
+test('Upstream error card quotes every line of a multi-line message', async () => {
+  const { OpenCodeChatProvider } = await import('../out/chat/infrastructure/vscode-chat-provider.js');
+  const { startMockServer } = await import('./helpers/mock-opencode-server.js');
+  const path = await import('node:path');
+  const server = await startMockServer(0);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    let target = input;
+    if (typeof target === 'string' && target.startsWith('https://opencode.ai/zen/')) {
+      target = target.replace('https://opencode.ai', server.url);
+    }
+    return originalFetch(target, init);
+  };
+  try {
+    server.setScenario({
+      mode: 'fault',
+      status: 500,
+      message: 'first line\nsecond line\nthird line',
+    });
+    server.clearRequests();
+    const context = { secrets: { get: async () => 'sk-test' }, globalStorageUri: { fsPath: path.resolve(process.cwd(), '.test-user-data', 'honest-alert-multiline-storage') } };
+    const provider = new OpenCodeChatProvider(context);
+    const parts = [];
+    const vscode = await import('vscode');
+    await provider.provideLanguageModelChatResponse(
+      { id: 'kimi-k3', name: 'Kimi K3 (OpenCode Go)', family: 'kimi-k3' },
+      [{ role: vscode.LanguageModelChatMessageRole.User, content: [new vscode.LanguageModelTextPart('hi')] }],
+      {},
+      { report: (part) => parts.push(part) },
+      { isCancellationRequested: false, onCancellationRequested: (() => { const e = new vscode.EventEmitter(); return e.event; })() }
+    );
+    assert.equal(parts.length, 1);
+    for (const line of String(parts[0].value).split('\n')) {
+      assert.ok(line.startsWith('> '), `every alert line stays inside the blockquote, got: ${JSON.stringify(line)}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    await server.close();
+  }
+});
