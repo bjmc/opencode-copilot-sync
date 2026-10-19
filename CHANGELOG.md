@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.19.2 - 2026-10-19
+#### Bug Fixes
+- (**build**) bundle via esbuild JS API instead of spawning npx - (3378c17) - Mark Fenderov
+- (**ci**) align E2E and gates with honest-client contract - (cbeaab0) - Mark Fenderov
+- (**review**) unspoofable alert lines, narrow Zen heuristic, typed dev version - (2fe5329) - Mark Fenderov
+#### Miscellaneous Chores
+- (**badge**) refresh CRAP badge [skip ci] - (88a5038) - github-actions[bot]
+
+- - -
+
 ## v0.19.1 - 2026-10-08
 #### Bug Fixes
 - (**provider**) keep Copilot's system prompt as system, not assistant (#22) - (ecc5f14) - Mark Fenderov
