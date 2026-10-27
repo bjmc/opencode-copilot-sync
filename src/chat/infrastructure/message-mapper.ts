@@ -19,7 +19,7 @@ export interface FormattedMessage {
 
 export interface ResponsesInputMessage {
   role: 'user' | 'assistant' | 'system';
-  content: string | { type: string; text?: string; [key: string]: unknown }[];
+  content: string | { type: string; text?: string;[key: string]: unknown }[];
 }
 
 export interface ResponsesInputFunctionCall {
@@ -61,8 +61,30 @@ interface ResultPartValue {
   value?: unknown;
 }
 
+/**
+ * Host-attached data parts (images, cache markers, replay metadata) carry no
+ * transcript text. Serialising them would leak VS Code's marshalled envelope
+ * into the prompt: Copilot Chat marks prompt-cache breakpoints with a
+ * `LanguageModelDataPart` whose mimeType is `cache_control` and whose data is
+ * base64 `ephemeral`, and a plain `JSON.stringify` turns that into
+ * `{"$mid":24,"mimeType":"cache_control","data":"ZXBoZW1lcmFs"}`. The model
+ * then reads that JSON as if it were tool output.
+ *
+ * The value is checked structurally as well as by class: parts crossing the
+ * extension-host RPC boundary arrive as plain objects carrying `$mid`, so
+ * `instanceof` alone misses exactly the cases that reach this mapper.
+ */
+function isHostDataPart(part: unknown): boolean {
+  if (!part || typeof part !== 'object') return false;
+  if (part instanceof vscode.LanguageModelDataPart) return true;
+  const rec = part as Record<string, unknown>;
+  if (typeof rec.mimeType !== 'string') return false;
+  return rec.data !== undefined || rec.$mid !== undefined;
+}
+
 function partText(part: unknown): string {
   if (typeof part === 'string') return part;
+  if (isHostDataPart(part)) return '';
   if (part && typeof part === 'object' && typeof (part as ResultPartValue).value === 'string') {
     return (part as ResultPartValue).value as string;
   }
@@ -72,10 +94,13 @@ function partText(part: unknown): string {
 function formatToolResultContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return content.map(partText).join('\n');
+    return content
+      .map(partText)
+      .filter((text) => text !== '')
+      .join('\n');
   }
   if (content !== undefined && content !== null) {
-    return JSON.stringify(content) ?? '';
+    return isHostDataPart(content) ? '' : (JSON.stringify(content) ?? '');
   }
   return '';
 }
@@ -125,6 +150,8 @@ export function formatProviderMessages(
       }
       if (part instanceof vscode.LanguageModelTextPart) {
         textContent += part.value;
+      } else if (isHostDataPart(part)) {
+        continue;
       } else if (part instanceof vscode.LanguageModelToolCallPart) {
         toolCalls.push(formatToolCallPart(part));
       } else if (part instanceof vscode.LanguageModelToolResultPart) {
